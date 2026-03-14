@@ -6,7 +6,7 @@ langchain-groq
 langgraph
 sentence-transformers
 torch
-pinecone
+pinecone-client
 langchain-pinecone
 tavily-python
 newspaper3k
