@@ -129,8 +129,17 @@ def rag_search_tool(query: str) -> str:
             "Run: python scripts/ingest_data.py"
         )
     except Exception as e:
-        logger.error("RAG search failed: %s", e)
-        return f"RAG_ERROR: {e}"
+        # Sanitize error message to prevent leaking API keys
+        from app.config import settings
+        err_msg = str(e)
+        for secret in [
+            settings.PINECONE_API_KEY, settings.GROQ_API_KEY,
+            settings.TAVILY_API_KEY, settings.HF_TOKEN,
+        ]:
+            if secret:
+                err_msg = err_msg.replace(secret, "***")
+        logger.error("RAG search failed: %s", err_msg)
+        return f"RAG_ERROR: {err_msg}"
 
 
 @tool

@@ -8,22 +8,22 @@ PROJECT_ROOT   = Path(__file__).resolve().parents[1]
 DATA_DIR       = PROJECT_ROOT / "data"
 RAW_DATA_DIR   = DATA_DIR / "raw"
 
-GROQ_API_KEY              = os.getenv("GROQ_API_KEY", "")
-TAVILY_API_KEY            = os.getenv("TAVILY_API_KEY", "")
-HF_TOKEN                  = os.getenv("HF_TOKEN", "")
-GOOGLE_FACTCHECK_API_KEY  = os.getenv("GOOGLE_FACTCHECK_API_KEY", "")
-LLM_MODEL       = os.getenv("LLM_MODEL", "groq/compound")
+GROQ_API_KEY              = os.getenv("GROQ_API_KEY", "").strip()
+TAVILY_API_KEY            = os.getenv("TAVILY_API_KEY", "").strip()
+HF_TOKEN                  = os.getenv("HF_TOKEN", "").strip()
+GOOGLE_FACTCHECK_API_KEY  = os.getenv("GOOGLE_FACTCHECK_API_KEY", "").strip()
+LLM_MODEL       = os.getenv("LLM_MODEL", "groq/compound").strip()
 LLM_TEMPERATURE = 0.1
 LLM_MAX_TOKENS  = 2048
 
-EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
-EMBEDDING_DEVICE = os.getenv("EMBEDDING_DEVICE", "cpu")
-EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "384"))
+EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2").strip()
+EMBEDDING_DEVICE = os.getenv("EMBEDDING_DEVICE", "cpu").strip()
+EMBEDDING_DIMENSION = int(os.getenv("EMBEDDING_DIMENSION", "384").strip())
 
-PINECONE_API_KEY    = os.getenv("PINECONE_API_KEY", "")
-PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "")
-PINECONE_CLOUD      = os.getenv("PINECONE_CLOUD", "aws")
-PINECONE_REGION     = os.getenv("PINECONE_REGION", "us-east-1")
+PINECONE_API_KEY    = os.getenv("PINECONE_API_KEY", "").strip()
+PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "").strip()
+PINECONE_CLOUD      = os.getenv("PINECONE_CLOUD", "aws").strip()
+PINECONE_REGION     = os.getenv("PINECONE_REGION", "us-east-1").strip()
 
 USE_GPU       = os.getenv("USE_GPU", "false").lower() == "true"
 MAX_FILE_SIZE = 5 * 1024 * 1024
