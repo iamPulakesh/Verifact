@@ -73,12 +73,12 @@ An AI-powered system designed to analyze news headlines, paragraphs, image snaps
 │   ├── config.py      
 │   └── main.py
 ├── data/            
-│   ├── raw/           # fact-check datasets (downloaded via scripts/)
+│   ├── raw/           # fact-check datasets
 ├── frontend/
 │   └── streamlit_app.py
 ├── scripts/           # Utilities for downloading and ingesting fact-check datasets
 ├── tests/
-├── .env.example       # Copy to .env and fill in your credentials
+├── .env.example
 ├── requirements.txt
 ├── .python-version
 ├── Dockerfile
