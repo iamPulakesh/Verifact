@@ -10,11 +10,16 @@ RAW_DATA_DIR   = DATA_DIR / "raw"
 
 GROQ_API_KEY              = os.getenv("GROQ_API_KEY", "").strip()
 TAVILY_API_KEY            = os.getenv("TAVILY_API_KEY", "").strip()
+LLM_PROVIDER              = os.getenv("LLM_PROVIDER", "groq").strip().lower()
+SAMBANOVA_API_KEY         = os.getenv("SAMBANOVA_API_KEY", "").strip()
+SAMBANOVA_MODEL           = os.getenv("SAMBANOVA_MODEL", "gpt-oss-120b").strip()
+GOOGLE_API_KEY            = os.getenv("GOOGLE_API_KEY", "").strip()
+GOOGLE_MODEL              = os.getenv("GOOGLE_MODEL", "gemini-2.5-flash").strip()
 HF_TOKEN                  = os.getenv("HF_TOKEN", "").strip()
 GOOGLE_FACTCHECK_API_KEY  = os.getenv("GOOGLE_FACTCHECK_API_KEY", "").strip()
-LLM_MODEL       = os.getenv("LLM_MODEL", "groq/compound").strip()
-LLM_TEMPERATURE = 0.1
-LLM_MAX_TOKENS  = 2048
+LLM_MODEL                 = os.getenv("LLM_MODEL", "groq/compound").strip()
+LLM_TEMPERATURE           = 0.1
+LLM_MAX_TOKENS            = 4096
 
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2").strip()
 EMBEDDING_DEVICE = os.getenv("EMBEDDING_DEVICE", "cpu").strip()

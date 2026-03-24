@@ -6,7 +6,7 @@ langchain-groq
 langgraph
 sentence-transformers
 torch
-pinecone-client
+pinecone
 langchain-pinecone
 tavily-python
 newspaper3k
@@ -18,7 +18,7 @@ easyocr
 pytesseract
 Pillow
 fastapi
-uvicorn
+uvicorn[standard]
 python-multipart
 streamlit
 pydantic
@@ -31,3 +31,9 @@ pandas
 numpy
 tqdm
 httpx
+langchain-sambanova
+langchain-google-genai
+slowapi
+limits[redis]
+redis
+jinja2

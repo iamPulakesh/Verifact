@@ -1,4 +1,4 @@
-# News Authenticity Checker
+# Verifact- Misinformation Detector
 
 An AI-powered system designed to analyze news headlines, paragraphs, image snapshots and URLs to mitigate misinformations. It thoroughly evaluates claims against verified fact-checks and live web search data to deliver a concrete authenticity verdict.
 

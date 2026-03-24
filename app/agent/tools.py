@@ -5,6 +5,14 @@ from typing import Optional
 
 from langchain.tools import tool
 from langchain_groq import ChatGroq
+try:
+    from langchain_google_genai import ChatGoogleGenerativeAI
+except ImportError:
+    ChatGoogleGenerativeAI = None
+try:
+    from langchain_sambanova import ChatSambaNova
+except ImportError:
+    ChatSambaNova = None
 from tavily import TavilyClient
 
 from app.multimodal.ocr import extract_text_from_image
@@ -17,6 +25,24 @@ logger = logging.getLogger(__name__)
 
 def _get_llm():
     from app.config import settings
+    provider = getattr(settings, "LLM_PROVIDER", "groq")
+    
+    if provider == "google" and ChatGoogleGenerativeAI:
+        return ChatGoogleGenerativeAI(
+            model=settings.GOOGLE_MODEL,
+            google_api_key=settings.GOOGLE_API_KEY,
+            temperature=settings.LLM_TEMPERATURE,
+            max_output_tokens=1024,
+        )
+    
+    if provider == "sambanova" and ChatSambaNova:
+        return ChatSambaNova(
+            model=settings.SAMBANOVA_MODEL,
+            max_tokens=1024,
+            temperature=settings.LLM_TEMPERATURE,
+            sambanova_api_key=settings.SAMBANOVA_API_KEY,
+        )
+
     return ChatGroq(
         model=settings.LLM_MODEL,
         temperature=settings.LLM_TEMPERATURE,

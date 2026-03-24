@@ -3,6 +3,14 @@ from typing import TypedDict, Annotated, Optional
 import operator
 
 from langchain_groq import ChatGroq
+try:
+    from langchain_google_genai import ChatGoogleGenerativeAI
+except ImportError:
+    ChatGoogleGenerativeAI = None
+try:
+    from langchain_sambanova import ChatSambaNova
+except ImportError:
+    ChatSambaNova = None
 from langchain_core.messages import HumanMessage
 from langgraph.graph import StateGraph, END
 
@@ -39,7 +47,23 @@ class AgentState(TypedDict):
 
 
 def _get_llm():
+    provider = getattr(settings, "LLM_PROVIDER", "groq")
     
+    if provider == "google" and ChatGoogleGenerativeAI:
+        return ChatGoogleGenerativeAI(
+            model=settings.GOOGLE_MODEL,
+            google_api_key=settings.GOOGLE_API_KEY,
+            temperature=settings.LLM_TEMPERATURE,
+        )
+    
+    if provider == "sambanova" and ChatSambaNova:
+        return ChatSambaNova(
+            model=settings.SAMBANOVA_MODEL,
+            max_tokens=settings.LLM_MAX_TOKENS,
+            temperature=settings.LLM_TEMPERATURE,
+            sambanova_api_key=settings.SAMBANOVA_API_KEY,
+        )
+
     return ChatGroq(
         model=settings.LLM_MODEL,
         temperature=settings.LLM_TEMPERATURE,
@@ -80,7 +104,17 @@ def claim_extractor_node(state: AgentState) -> AgentState:
     prompt = CLAIM_EXTRACTION_PROMPT.format(article_text=article_text[:3000])
     try:
         response = llm.invoke(prompt)
-        raw = response.content.strip().replace("```json","").replace("```","").strip()
+        raw = response.content.strip()
+        
+        json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw)
+        if json_match:
+            raw = json_match.group(1).strip()
+        else:
+            # Fallback for when there are no code blocks
+            json_match = re.search(r"(\[[\s\S]*\]|\{[\s\S]*\})", raw)
+            if json_match:
+                raw = json_match.group(1).strip()
+        
         claims = json.loads(raw)
         if not isinstance(claims, list):
             claims = [str(claims)]
