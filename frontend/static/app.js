@@ -8,6 +8,25 @@ const API = {
 
 const $ = id => document.getElementById(id);
 
+function looksLikeUrl(str) {
+  if (!str) return false;
+  const val = str.trim().toLowerCase();
+
+  if (!val.startsWith("http://") && !val.startsWith("https://")) {
+    return false;
+  }
+
+  try {
+    const url = new URL(val);
+    // Basic sanity check: must have a dot and no spaces
+    return url.hostname.includes(".") &&
+      url.hostname.length > 3 &&
+      !val.includes(" ");
+  } catch (e) {
+    return false;
+  }
+}
+
 const tabs = document.querySelectorAll(".tab");
 const panels = document.querySelectorAll(".panel");
 const analyzeBtn = $("analyze-btn");
@@ -58,6 +77,143 @@ themeToggle.addEventListener("click", () => {
   applyTheme(newTheme);
 });
 
+// API Sidebar 
+const apiDocsBtn = $("api-docs-btn");
+const apiSidebar = $("api-sidebar");
+const sidebarOverlay = $("sidebar-overlay");
+const closeSidebarBtn = $("close-sidebar-btn");
+
+function openSidebar() {
+  apiSidebar.hidden = false;
+  sidebarOverlay.hidden = false;
+  void apiSidebar.offsetWidth;
+  apiSidebar.classList.add("open");
+  sidebarOverlay.classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+function closeSidebar() {
+  apiSidebar.classList.remove("open");
+  sidebarOverlay.classList.remove("open");
+  document.body.style.overflow = "";
+
+  setTimeout(() => {
+    apiSidebar.hidden = true;
+    sidebarOverlay.hidden = true;
+  }, 300);
+}
+
+if (apiDocsBtn) apiDocsBtn.addEventListener("click", openSidebar);
+if (closeSidebarBtn) closeSidebarBtn.addEventListener("click", closeSidebar);
+if (sidebarOverlay) sidebarOverlay.addEventListener("click", closeSidebar);
+
+// Model Switcher
+const modelSwitcher = $("model-switcher");
+const modelBtn = $("model-btn");
+const modelDropdown = $("model-dropdown");
+const modelLabelEl = $("model-label");
+const providerChipsEl = $("provider-chips");
+const modelOptionsEl = $("model-options");
+
+let currentProvider = "";
+let currentModel = "";
+let providerModels = {};
+
+function toggleModelDropdown() {
+  const isOpen = !modelDropdown.hidden;
+  if (isOpen) {
+    modelDropdown.hidden = true;
+    modelSwitcher.classList.remove("open");
+  } else {
+    modelDropdown.hidden = false;
+    modelSwitcher.classList.add("open");
+  }
+}
+
+function closeModelDropdown() {
+  modelDropdown.hidden = true;
+  modelSwitcher.classList.remove("open");
+}
+
+function renderProviderChips() {
+  providerChipsEl.innerHTML = "";
+  Object.keys(providerModels).forEach(prov => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "provider-chip" + (prov === currentProvider ? " active" : "");
+    btn.textContent = prov;
+    btn.addEventListener("click", () => selectProvider(prov));
+    providerChipsEl.appendChild(btn);
+  });
+}
+
+function renderModelOptions(provider) {
+  modelOptionsEl.innerHTML = "";
+  const models = providerModels[provider] || [];
+  models.forEach(m => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "model-option" + (m === currentModel ? " active" : "");
+    btn.textContent = m;
+    btn.addEventListener("click", () => selectModel(provider, m));
+    modelOptionsEl.appendChild(btn);
+  });
+}
+
+function selectProvider(prov) {
+  currentProvider = prov;
+  renderProviderChips();
+  renderModelOptions(prov);
+}
+
+async function selectModel(provider, model) {
+  currentModel = model;
+  renderModelOptions(provider);
+  await switchModelOnServer(provider, model);
+  closeModelDropdown();
+}
+
+async function switchModelOnServer(provider, model) {
+  try {
+    const res = await fetch("/api/model/switch", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, model }),
+    });
+    if (res.ok) {
+      modelLabelEl.textContent = model.length > 18 ? model.slice(0, 16) + "…" : model;
+    }
+  } catch (e) {
+    console.error("Model switch failed:", e);
+  }
+}
+
+async function loadCurrentModel() {
+  try {
+    const res = await fetch("/api/model/current");
+    if (!res.ok) return;
+    const data = await res.json();
+    currentProvider = data.provider || "";
+    currentModel = data.model || "";
+    providerModels = data.providers || {};
+    modelLabelEl.textContent = currentModel.length > 18 ? currentModel.slice(0, 16) + "…" : currentModel;
+    renderProviderChips();
+    renderModelOptions(currentProvider);
+  } catch (e) {
+    console.error("Failed to load model info:", e);
+  }
+}
+
+if (modelBtn) modelBtn.addEventListener("click", toggleModelDropdown);
+
+document.addEventListener("click", e => {
+  if (modelSwitcher && !e.composedPath().includes(modelSwitcher)) {
+    closeModelDropdown();
+  }
+});
+
+loadCurrentModel();
+
 let activeTab = "url";
 let imageFile = null;
 let progressTimer = null;
@@ -100,9 +256,9 @@ textInput.addEventListener("input", () => {
   textCounter.className = "char-counter" +
     (len > max * 0.9 ? " danger" : len > max * 0.75 ? " warn" : "");
 
-  const isUrl = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/.test(val);
+  const isUrl = looksLikeUrl(val);
   textUrlError.hidden = !isUrl;
-  
+
   updateAnalyzeBtn();
 });
 
@@ -110,14 +266,14 @@ function updateAnalyzeBtn() {
   let ready = false;
   if (activeTab === "url") {
     const val = urlInput.value.trim();
-    const isValid = val.length > 0 && /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/.test(val);
+    const isValid = val.length > 0 && looksLikeUrl(val);
     urlError.hidden = val.length === 0 || isValid;
     ready = isValid;
   } else if (activeTab === "image") {
     ready = imageFile !== null;
   } else if (activeTab === "text") {
     const val = textInput.value.trim();
-    const isUrl = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/.test(val);
+    const isUrl = looksLikeUrl(val);
     ready = val.length >= 10 && !isUrl;
   }
   analyzeBtn.disabled = !ready;
@@ -368,10 +524,21 @@ function renderResults(data) {
 
   const reasonEl = $("reasoning");
   if (data.reasoning_summary) {
-    reasonEl.textContent = data.reasoning_summary;
+    let rawReason = data.reasoning_summary;
+    const isRateLimit = rawReason.includes("429") || rawReason.toLowerCase().includes("rate limit");
+
+    if (isRateLimit) {
+      rawReason = "This model is getting too many requests right now. Please try a different model.";
+      reasonEl.classList.add("reasoning-alert");
+    } else {
+      reasonEl.classList.remove("reasoning-alert");
+    }
+
+    reasonEl.textContent = rawReason;
     reasonEl.hidden = false;
   } else {
     reasonEl.hidden = true;
+    reasonEl.classList.remove("reasoning-alert");
   }
 
   const claimsBlock = $("claims-block");
