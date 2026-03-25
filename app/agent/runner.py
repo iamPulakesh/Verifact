@@ -82,7 +82,7 @@ def _error_verdict(raw_input: str, error: str, elapsed: float) -> FactCheckVerdi
         confidence_score  = 0.0,
         claims_analyzed   = [],
         reasoning_summary = f"Fact-checking failed: {error}",
-        sources_consulted = [raw_input],
+        sources_consulted = ["None"],
         cot_steps         = f"Pipeline error after {elapsed:.1f}s: {error}",
         input_type        = "unknown",
         article_title     = "",

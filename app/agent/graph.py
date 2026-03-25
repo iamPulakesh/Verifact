@@ -4,13 +4,14 @@ import operator
 
 from langchain_groq import ChatGroq
 try:
-    from langchain_google_genai import ChatGoogleGenerativeAI
-except ImportError:
-    ChatGoogleGenerativeAI = None
-try:
     from langchain_sambanova import ChatSambaNova
 except ImportError:
     ChatSambaNova = None
+try:
+    from langchain_cerebras import ChatCerebras
+except ImportError:
+    ChatCerebras = None
+    
 from langchain_core.messages import HumanMessage
 from langgraph.graph import StateGraph, END
 
@@ -49,19 +50,20 @@ class AgentState(TypedDict):
 def _get_llm():
     provider = getattr(settings, "LLM_PROVIDER", "groq")
     
-    if provider == "google" and ChatGoogleGenerativeAI:
-        return ChatGoogleGenerativeAI(
-            model=settings.GOOGLE_MODEL,
-            google_api_key=settings.GOOGLE_API_KEY,
-            temperature=settings.LLM_TEMPERATURE,
-        )
-    
     if provider == "sambanova" and ChatSambaNova:
         return ChatSambaNova(
             model=settings.SAMBANOVA_MODEL,
             max_tokens=settings.LLM_MAX_TOKENS,
             temperature=settings.LLM_TEMPERATURE,
             sambanova_api_key=settings.SAMBANOVA_API_KEY,
+        )
+
+    if provider == "cerebras" and ChatCerebras:
+        return ChatCerebras(
+            model=settings.CEREBRAS_MODEL,
+            max_tokens=settings.LLM_MAX_TOKENS,
+            temperature=settings.LLM_TEMPERATURE,
+            api_key=settings.CEREBRAS_API_KEY,
         )
 
     return ChatGroq(
@@ -236,25 +238,30 @@ def _parse_verdict(data: dict, state: AgentState) -> FactCheckVerdict:
             for c in state["claims"][:3]]
 
     llm_sources = list(data.get("sources_consulted", []))
-    web_context = state.get("web_context", "")
-    web_urls = re.findall(r"URL\s*:\s*(https?://[^\s]+)", web_context)
-
     all_sources = []
     seen = set()
-    for src in llm_sources + web_urls:
+
+    for src in llm_sources:
         src = src.strip()
-        if src and src not in seen:
-            seen.add(src)
-            all_sources.append(src)
+        if src and src not in seen and not src.lower().endswith(('.com', '.org', '.net', '/', '.gov')):
+             if "://" in src and src.count("/") >= 3:
+                 seen.add(src)
+                 all_sources.append(src)
+             elif "://" not in src:
+                 seen.add(src)
+                 all_sources.append(src)
+        elif src and src not in seen:
+             seen.add(src)
+             all_sources.append(src)
 
     if not all_sources:
-        all_sources = [state.get("article_source", "")]
+        all_sources = ["None"]
 
     return FactCheckVerdict(
         verdict=verdict, confidence_score=round(confidence_final,2),
         claims_analyzed=claims_analyzed,
         reasoning_summary=str(data.get("reasoning_summary","Analysis complete.")),
-        sources_consulted=all_sources,
+        sources_consulted=all_sources[:5],
         cot_steps=str(data.get("cot_steps","")),
         input_type=state.get("input_type","unknown"),
         article_title=state.get("article_title",""),
@@ -280,7 +287,7 @@ def _fallback_verdict(state: AgentState, reason: str) -> FactCheckVerdict:
         verdict=VerdictLabel.UNVERIFIED, confidence_score=0.1,
         claims_analyzed=[],
         reasoning_summary=f"Could not generate verdict: {reason}",
-        sources_consulted=[state.get("article_source","unknown")],
+        sources_consulted=["None"],
         cot_steps="Verdict generation failed.",
         input_type=state.get("input_type","unknown"),
         article_title=state.get("article_title",""),

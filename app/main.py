@@ -16,20 +16,13 @@ from slowapi.middleware import SlowAPIMiddleware
 
 from app.api.rate_limit import limiter
 from app.api.routes import router
-from app.rag.vectorstore import get_embeddings
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Lazy-loading embeddings instead of pre-loading to speed up server startups
-    # logger.info("Verifact starting – pre-loading embedding model…")
-    # try:
-    #     get_embeddings()
-    #     logger.info("Embedding model ready.")
-    # except Exception as exc:
-    #     logger.warning("Could not pre-load embedding model: %s", exc)
+    logger.info("Verifact API starting...")
     yield
     logger.info("Verifact shutting down.")
 
@@ -38,8 +31,8 @@ app = FastAPI(
     description="AI-powered news authenticity checker",
     version="1.0.0",
     lifespan=lifespan,
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
+    docs_url=None,
+    redoc_url=None,
     openapi_url="/api/openapi.json",
 )
 
@@ -64,6 +57,32 @@ app.add_middleware(
 
 # Routes
 app.include_router(router)
+
+@app.get("/api/docs", include_in_schema=False)
+async def custom_scalar_docs():
+    """Renders a beautifully polished Scalar API documentation."""
+    from fastapi.responses import HTMLResponse
+    scalar_html = """
+    <!doctype html>
+    <html>
+      <head>
+        <title>Verifact API Reference</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <style>
+          body { margin: 0; }
+        </style>
+      </head>
+      <body>
+        <script
+          id="api-reference"
+          data-url="/api/openapi.json"
+          data-configuration='{"theme": "deepSpace", "layout": "modern"}'></script>
+        <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+      </body>
+    </html>
+    """
+    return HTMLResponse(content=scalar_html)
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend" / "static"
 
