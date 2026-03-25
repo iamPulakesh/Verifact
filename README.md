@@ -16,7 +16,7 @@ Smart AI-powered system designed to analyze news headlines, paragraphs, image sn
 *   **Backend**: [FastAPI](https://fastapi.tiangolo.com/) (Python)
 *   **Frontend**: Vanilla HTML5, CSS3, and JavaScript (No external frameworks for maximum performance).
 *   **Agent Framework**: [LangChain](https://python.langchain.com/) and [LangGraph](https://python.langchain.com/docs/langgraph).
-*   **LLMs**: Open-weight and proprietary models via [Groq](https://groq.com/) and [Google Gemini](https://ai.google.dev/).
+*   **LLMs**: Open-weight and proprietary models via multiple inference providers.
 *   **Information Retrieval**: 
     *   [ChromaDB](https://www.trychroma.com/) / Vectorstore
     *   HuggingFace `sentence-transformers` (Lazy Loaded)
