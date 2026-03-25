@@ -485,6 +485,28 @@ function setBtnLoading(on) {
     icon.innerHTML = `<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>`;
     updateAnalyzeBtn();
   }
+
+  if (modelBtn) {
+    modelBtn.disabled = on;
+    modelBtn.style.pointerEvents = on ? "none" : "";
+    modelBtn.style.opacity = on ? "0.6" : "1";
+  }
+  
+  analyzeBtn.style.pointerEvents = on ? "none" : "";
+  if (urlInput) urlInput.disabled = on;
+  if (textInput) textInput.disabled = on;
+  if (imageInput) imageInput.disabled = on;
+  if (removeBtn) removeBtn.disabled = on;
+
+  tabs.forEach(tab => {
+    tab.disabled = on;
+    tab.style.pointerEvents = on ? "none" : "";
+    tab.style.opacity = on ? "0.6" : "1";
+  });
+
+  if (on && typeof modelDropdown !== 'undefined' && !modelDropdown.hidden) {
+    toggleModelDropdown();
+  }
 }
 
 resetBtn.addEventListener("click", reset);
