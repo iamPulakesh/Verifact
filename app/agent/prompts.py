@@ -53,6 +53,7 @@ STEP 5 -- CROSS-SOURCE CONSISTENCY CHECK:
   - Do the RAG database and web search results agree?
   - Are there any contradictions between sources?
   - How credible are the sources (major news outlets vs blogs vs unknown)?
+  - BE CONCISE. Avoid repetition.
 
 STEP 6 -- FINAL VERDICT:
 Based on your analysis, synthesize a final verdict.
@@ -64,6 +65,8 @@ VERDICT OPTIONS:
                 missing important context, or cherry-picked
   Unverified  -- Insufficient evidence found to confirm or deny
 
+CRITICAL SOURCE INSTRUCTION: Do NOT include any sources in 'sources_consulted' unless they are directly relevant to the specific claims being evaluated. If you have an "Unverified" verdict, a weak verdict, or if no highly relevant sources were found, you MUST return an empty list [] for 'sources_consulted'. Never include unrelated links.
+
 You MUST return your response as valid JSON in EXACTLY this format:
 {{
   "verdict": "Real|Fake|Misleading|Unverified",
@@ -73,15 +76,15 @@ You MUST return your response as valid JSON in EXACTLY this format:
       "claim": "The specific claim text",
       "status": "Supported|Contradicted|Unverifiable",
       "confidence": "High|Medium|Low",
-      "evidence": "Brief explanation of the evidence"
+      "evidence": "CONCISE 1-2 sentence evidence summary"
     }}
   ],
-  "reasoning_summary": "2-3 sentence explanation of the overall verdict",
-  "sources_consulted": ["https://full-url-of-source1.com/article", "https://full-url-of-source2.com/article"],
-  "cot_steps": "Brief summary of your reasoning steps 1-5"
+  "reasoning_summary": "CONCISE 1-2 sentence overall explanation",
+  "sources_consulted": ["List of highly relevant URLs only, or [] if none"],
+  "cot_steps": "CONCISE summary of reasoning steps 1-5"
 }}
 
-Respond with ONLY the JSON. No markdown. No preamble.
+Respond with ONLY the JSON. No markdown. No preamble. No talk.
 """
 
 
@@ -124,7 +127,7 @@ Convert this into valid JSON with exactly this structure:
     }}
   ],
   "reasoning_summary": "2-3 sentence summary",
-  "sources_consulted": ["https://example.com/article"],
+  "sources_consulted": ["https://example.com/highly-relevant-article", "Return empty list [] if no relevant sources were used"],
   "cot_steps": "reasoning steps summary"
 }}
 

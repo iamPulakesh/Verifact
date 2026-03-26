@@ -3,8 +3,7 @@ import logging
 import os
 from typing import Optional
 
-from langchain.tools import tool
-from langchain_groq import ChatGroq
+from langchain.tools import tool    
 from tavily import TavilyClient
 
 from app.multimodal.ocr import extract_text_from_image
@@ -15,14 +14,7 @@ from app.agent.prompts import CLAIM_EXTRACTION_PROMPT, SOURCE_CREDIBILITY_PROMPT
 logger = logging.getLogger(__name__)
 
 
-def _get_llm():
-    from app.config import settings
-    return ChatGroq(
-        model=settings.LLM_MODEL,
-        temperature=settings.LLM_TEMPERATURE,
-        max_tokens=1024,
-        api_key=settings.GROQ_API_KEY,
-    )
+from app.agent.llm_factory import get_llm
 
 
 @tool
@@ -80,7 +72,7 @@ def claim_extractor_tool(article_text: str) -> str:
     """
     logger.info("[TOOL] claim_extractor_tool called")
 
-    llm    = _get_llm()
+    llm    = get_llm()
     prompt = CLAIM_EXTRACTION_PROMPT.format(article_text=article_text[:3000])
 
     try:
@@ -129,7 +121,6 @@ def rag_search_tool(query: str) -> str:
             "Run: python scripts/ingest_data.py"
         )
     except Exception as e:
-        # Sanitize error message to prevent leaking API keys
         from app.config import settings
         err_msg = str(e)
         for secret in [
@@ -213,7 +204,7 @@ KNOWN_CREDIBILITY = {
 }
 
 @tool
-def source_checker_tool(domain: str) -> str:
+def source_checker_tool(domain: str, llm_provider: Optional[str] = None, llm_model: Optional[str] = None) -> str:
     """
     Checks the credibility of a news source domain.
     Use this to assess how trustworthy the article's source is.
@@ -235,7 +226,7 @@ def source_checker_tool(domain: str) -> str:
         )
 
     try:
-        llm    = _get_llm()
+        llm    = get_llm(provider=llm_provider, model=llm_model)
         prompt = SOURCE_CREDIBILITY_PROMPT.format(source_name=domain, url=domain)
         resp   = llm.invoke(prompt)
         raw    = resp.content.strip().replace("```json", "").replace("```", "")

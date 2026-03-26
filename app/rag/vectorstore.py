@@ -62,7 +62,6 @@ def ensure_index_exists():
                 region=settings.PINECONE_REGION,
             ),
         )
-        # Wait for the index to become ready
         while not pc.describe_index(PINECONE_INDEX).status.get("ready"):
             logger.info("Waiting for Pinecone index to be ready...")
             time.sleep(2)

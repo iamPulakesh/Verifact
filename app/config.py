@@ -10,11 +10,17 @@ RAW_DATA_DIR   = DATA_DIR / "raw"
 
 GROQ_API_KEY              = os.getenv("GROQ_API_KEY", "").strip()
 TAVILY_API_KEY            = os.getenv("TAVILY_API_KEY", "").strip()
+LLM_PROVIDER              = os.getenv("LLM_PROVIDER", "groq").strip().lower()
+SAMBANOVA_API_KEY         = os.getenv("SAMBANOVA_API_KEY", "").strip()
+SAMBANOVA_MODEL           = os.getenv("SAMBANOVA_MODEL", "DeepSeek-V3.1").strip()
+CEREBRAS_API_KEY          = os.getenv("CEREBRAS_API_KEY", "").strip()
+CEREBRAS_MODEL            = os.getenv("CEREBRAS_MODEL", "gpt-oss-120b").strip()
+FIREWORKS_API_KEY         = os.getenv("FIREWORKS_API_KEY", "").strip()
+FIREWORKS_MODEL           = os.getenv("FIREWORKS_MODEL", "accounts/fireworks/models/deepseek-v3p2").strip()
 HF_TOKEN                  = os.getenv("HF_TOKEN", "").strip()
-GOOGLE_FACTCHECK_API_KEY  = os.getenv("GOOGLE_FACTCHECK_API_KEY", "").strip()
-LLM_MODEL       = os.getenv("LLM_MODEL", "groq/compound").strip()
-LLM_TEMPERATURE = 0.1
-LLM_MAX_TOKENS  = 2048
+LLM_MODEL                 = os.getenv("LLM_MODEL", "groq/compound").strip()
+LLM_TEMPERATURE           = 0.1
+LLM_MAX_TOKENS            = 4096
 
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2").strip()
 EMBEDDING_DEVICE = os.getenv("EMBEDDING_DEVICE", "cpu").strip()
@@ -39,11 +45,11 @@ CHUNK_SIZE    = 500
 CHUNK_OVERLAP = 50
 RETRIEVAL_TOP_K     = 5
 RETRIEVAL_FETCH_K   = 20
-RETRIEVAL_LAMBDA    = 0.7   # MMR: 0 = max diversity, 1 = max relevance
+RETRIEVAL_LAMBDA    = 0.7   
 
-MAX_CLAIMS          = 6     # max claims to extract per article
-MAX_ARTICLE_CHARS   = 3000  # truncation limit for article text sent to LLM
-MAX_SEARCH_QUERIES  = 2     # web search queries per fact-check
+MAX_CLAIMS          = 6    
+MAX_ARTICLE_CHARS   = 3000  
+MAX_SEARCH_QUERIES  = 2     
 
 
 class _Settings:

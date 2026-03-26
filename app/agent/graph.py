@@ -1,8 +1,7 @@
 import json, logging, re
 from typing import TypedDict, Annotated, Optional
 import operator
-
-from langchain_groq import ChatGroq
+    
 from langchain_core.messages import HumanMessage
 from langgraph.graph import StateGraph, END
 
@@ -36,15 +35,18 @@ class AgentState(TypedDict):
     verdict:        Optional[object]
     messages:       Annotated[list, operator.add]
     errors:         list
+    llm_provider:   str
+    llm_model:      str
 
 
-def _get_llm():
-    
-    return ChatGroq(
-        model=settings.LLM_MODEL,
-        temperature=settings.LLM_TEMPERATURE,
-        max_tokens=settings.LLM_MAX_TOKENS,
-        api_key=settings.GROQ_API_KEY,
+from app.agent.llm_factory import get_llm
+
+
+def _state_llm(state: AgentState):
+    """Build an LLM using per-user overrides stored in state (from session cookie)."""
+    return get_llm(
+        provider=state.get("llm_provider") or None,
+        model=state.get("llm_model") or None,
     )
 
 
@@ -76,11 +78,20 @@ def claim_extractor_node(state: AgentState) -> AgentState:
                 "messages": [HumanMessage(content="No text to extract claims from.")]}
 
     
-    llm = _get_llm()
+    llm = _state_llm(state)
     prompt = CLAIM_EXTRACTION_PROMPT.format(article_text=article_text[:3000])
     try:
         response = llm.invoke(prompt)
-        raw = response.content.strip().replace("```json","").replace("```","").strip()
+        raw = response.content.strip()
+        
+        json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", raw)
+        if json_match:
+            raw = json_match.group(1).strip()
+        else:
+            json_match = re.search(r"(\[[\s\S]*\]|\{[\s\S]*\})", raw)
+            if json_match:
+                raw = json_match.group(1).strip()
+        
         claims = json.loads(raw)
         if not isinstance(claims, list):
             claims = [str(claims)]
@@ -96,38 +107,68 @@ def claim_extractor_node(state: AgentState) -> AgentState:
 
 def evidence_retriever_node(state: AgentState) -> AgentState:
     logger.info("[NODE] evidence_retriever_node")
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     claims = state.get("claims", [])
-    article_title = state.get("article_title","")
-    article_source = state.get("article_source","")
+    article_title = state.get("article_title", "")
+    article_source = state.get("article_source", "")
 
-    rag_parts = []
-    for claim in claims[:4]:
-        result = rag_search_tool.invoke({"query": claim})
-        rag_parts.append(f"Query: '{claim[:80]}'\n{result}")
-    rag_context = "\n\n".join(rag_parts) if rag_parts else "No RAG results."
 
-    llm = _get_llm()
-    try:
-        q_prompt = SEARCH_QUERY_PROMPT.format(
-            claims=json.dumps(claims[:3]), article_title=article_title)
-        q_resp = llm.invoke(q_prompt)
-        q_raw  = q_resp.content.strip().replace("```json","").replace("```","")
-        search_queries = json.loads(q_raw)
-        if not isinstance(search_queries, list):
-            search_queries = [article_title]
-    except Exception:
-        search_queries = [f"{article_title} fact check", claims[0] if claims else ""]
+    def _run_rag():
+        parts = []
+        for claim in claims[:4]:
+            result = rag_search_tool.invoke({"query": claim})
+            parts.append(f"Query: '{claim[:80]}'\n{result}")
+        return "\n\n".join(parts) if parts else "No RAG results."
+
+    def _generate_search_queries():
+        llm = _state_llm(state)
+        try:
+            q_prompt = SEARCH_QUERY_PROMPT.format(
+                claims=json.dumps(claims[:3]), article_title=article_title)
+            q_resp = llm.invoke(q_prompt)
+            q_raw = q_resp.content.strip().replace("```json", "").replace("```", "")
+            queries = json.loads(q_raw)
+            if not isinstance(queries, list):
+                return [article_title]
+            return queries
+        except Exception:
+            return [f"{article_title} fact check", claims[0] if claims else ""]
+
+    def _check_source():
+        src_result = source_checker_tool.invoke({
+            "domain": article_source,
+            "llm_provider": state.get("llm_provider"),
+            "llm_model": state.get("llm_model")
+        })
+        score_match = re.search(r"Score\s*:\s*([\d.]+)", src_result)
+        return float(score_match.group(1)) if score_match else 0.5
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        rag_future = pool.submit(_run_rag)
+        queries_future = pool.submit(_generate_search_queries)
+        source_future = pool.submit(_check_source)
+
+        rag_context = rag_future.result()
+        search_queries = queries_future.result()
+        source_score = source_future.result()
+
+    valid_queries = [q for q in search_queries[:2] if q.strip()]
+
+    def _run_web_search(query):
+        result = web_search_tool.invoke({"query": query})
+        return f"Search: '{query[:80]}'\n{result}"
 
     web_parts = []
-    for query in search_queries[:2]:
-        if query.strip():
-            result = web_search_tool.invoke({"query": query})
-            web_parts.append(f"Search: '{query[:80]}'\n{result}")
+    if valid_queries:
+        with ThreadPoolExecutor(max_workers=len(valid_queries)) as pool:
+            futures = {pool.submit(_run_web_search, q): q for q in valid_queries}
+            for future in as_completed(futures):
+                try:
+                    web_parts.append(future.result())
+                except Exception as e:
+                    logger.warning("Web search failed: %s", e)
     web_context = "\n\n".join(web_parts) if web_parts else "No web search results."
-
-    src_result  = source_checker_tool.invoke({"domain": article_source})
-    score_match = re.search(r"Score\s*:\s*([\d.]+)", src_result)
-    source_score = float(score_match.group(1)) if score_match else 0.5
 
     return {**state,
             "rag_context": rag_context,
@@ -138,7 +179,7 @@ def evidence_retriever_node(state: AgentState) -> AgentState:
 
 def verdict_generator_node(state: AgentState) -> AgentState:
     logger.info("[NODE] verdict_generator_node")
-    llm = _get_llm()
+    llm = _state_llm(state)
     claims_text = "\n".join(f"{i}. {c}" for i,c in enumerate(state.get("claims",[]),1))
 
     cot_prompt = FACT_CHECK_COT_PROMPT.format(
@@ -202,25 +243,30 @@ def _parse_verdict(data: dict, state: AgentState) -> FactCheckVerdict:
             for c in state["claims"][:3]]
 
     llm_sources = list(data.get("sources_consulted", []))
-    web_context = state.get("web_context", "")
-    web_urls = re.findall(r"URL\s*:\s*(https?://[^\s]+)", web_context)
-
     all_sources = []
     seen = set()
-    for src in llm_sources + web_urls:
+
+    for src in llm_sources:
         src = src.strip()
-        if src and src not in seen:
-            seen.add(src)
-            all_sources.append(src)
+        if src and src not in seen and not src.lower().endswith(('.com', '.org', '.net', '/', '.gov')):
+             if "://" in src and src.count("/") >= 3:
+                 seen.add(src)
+                 all_sources.append(src)
+             elif "://" not in src:
+                 seen.add(src)
+                 all_sources.append(src)
+        elif src and src not in seen:
+             seen.add(src)
+             all_sources.append(src)
 
     if not all_sources:
-        all_sources = [state.get("article_source", "")]
+        all_sources = ["None"]
 
     return FactCheckVerdict(
         verdict=verdict, confidence_score=round(confidence_final,2),
         claims_analyzed=claims_analyzed,
         reasoning_summary=str(data.get("reasoning_summary","Analysis complete.")),
-        sources_consulted=all_sources,
+        sources_consulted=all_sources[:5],
         cot_steps=str(data.get("cot_steps","")),
         input_type=state.get("input_type","unknown"),
         article_title=state.get("article_title",""),
@@ -246,7 +292,7 @@ def _fallback_verdict(state: AgentState, reason: str) -> FactCheckVerdict:
         verdict=VerdictLabel.UNVERIFIED, confidence_score=0.1,
         claims_analyzed=[],
         reasoning_summary=f"Could not generate verdict: {reason}",
-        sources_consulted=[state.get("article_source","unknown")],
+        sources_consulted=["None"],
         cot_steps="Verdict generation failed.",
         input_type=state.get("input_type","unknown"),
         article_title=state.get("article_title",""),

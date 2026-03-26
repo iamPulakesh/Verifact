@@ -19,20 +19,27 @@ logger = logging.getLogger(__name__)
 def run_fact_check(
     raw_input:   str,
     verbose:     bool = False,
+    llm_provider: str = "",
+    llm_model:    str = "",
 ) -> FactCheckVerdict:
     """
     Main entry point -- runs the full fact-checking agent pipeline.
 
     Args:
-        raw_input : Image file path OR news article URL
-        verbose   : If True, logs each agent step to console
+        raw_input    : Image file path OR news article URL
+        verbose      : If True, logs each agent step to console
+        llm_provider : Per-user LLM provider override (from session cookie)
+        llm_model    : Per-user LLM model override (from session cookie)
 
     Returns: FactCheckVerdict- structured verdict with confidence + reasoning
     """
     if verbose:
         logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
 
-    logger.info("Starting fact-check for: %s", raw_input[:80])
+    logger.info(
+        "Starting fact-check for: %s [provider=%s model=%s]",
+        raw_input[:80], llm_provider or "default", llm_model or "default"
+    )
     start = time.time()
 
     initial_state: AgentState = {
@@ -50,6 +57,8 @@ def run_fact_check(
         "verdict":        None,
         "messages":       [],
         "errors":         [],
+        "llm_provider":   llm_provider,
+        "llm_model":      llm_model,
     }
 
     try:
@@ -82,7 +91,7 @@ def _error_verdict(raw_input: str, error: str, elapsed: float) -> FactCheckVerdi
         confidence_score  = 0.0,
         claims_analyzed   = [],
         reasoning_summary = f"Fact-checking failed: {error}",
-        sources_consulted = [raw_input],
+        sources_consulted = ["None"],
         cot_steps         = f"Pipeline error after {elapsed:.1f}s: {error}",
         input_type        = "unknown",
         article_title     = "",

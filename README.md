@@ -1,6 +1,6 @@
-# News Authenticity Checker
+# Verifact
 
-An AI-powered system designed to analyze news headlines, paragraphs, image snapshots and URLs to mitigate misinformations. It thoroughly evaluates claims against verified fact-checks and live web search data to deliver a concrete authenticity verdict.
+Smart AI-powered system designed to analyze news headlines, paragraphs, image snapshots, and URLs to mitigate misinformation. It thoroughly evaluates claims against verified fact-checks and live web search data to deliver a concrete authenticity verdict.
 
 ---
 ## Key Features
@@ -13,16 +13,17 @@ An AI-powered system designed to analyze news headlines, paragraphs, image snaps
 
 ## Tech Stack
 
-* **UI**: [Streamlit](https://streamlit.io/) with custom CSS injection.
-* **Agent Framework**: [LangChain](https://python.langchain.com/) and [LangGraph](https://python.langchain.com/docs/langgraph).
-* **LLMs**: Open-weight and proprietary models via [Groq](https://groq.com/).
-* **Information Retrieval**: 
-  * [Pinecone](https://www.pinecone.io/)
-  * HuggingFace `sentence-transformers`
-  * [Tavily AI](https://tavily.com/)
-* **Data Scraping & OCR**:
-  * [EasyOCR](https://github.com/JaidedAI/EasyOCR) & [pytesseract](https://github.com/madmaze/pytesseract)
-  * [Newspaper3k](https://github.com/codelucas/newspaper) & [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/)
+*   **Backend**: [FastAPI](https://fastapi.tiangolo.com/) (Python)
+*   **Frontend**: Vanilla HTML5, CSS3, and JavaScript (No external frameworks for maximum performance).
+*   **Agent Framework**: [LangChain](https://python.langchain.com/) and [LangGraph](https://python.langchain.com/docs/langgraph).
+*   **LLMs**: Open-weight and proprietary models via multiple inference providers.
+*   **Information Retrieval**: 
+    *   [ChromaDB](https://www.trychroma.com/) / Vectorstore
+    *   HuggingFace `sentence-transformers` (Lazy Loaded)
+    *   [Tavily AI](https://tavily.com/) (Web Search)
+*   **Data Scraping & OCR**:
+    *   [EasyOCR](https://github.com/JaidedAI/EasyOCR) & [pytesseract](https://github.com/madmaze/pytesseract)
+    *   [Newspaper3k](https://github.com/codelucas/newspaper) & [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/)
 
 ---
 
@@ -62,28 +63,50 @@ An AI-powered system designed to analyze news headlines, paragraphs, image snaps
 
 ```text
 ├── app/
-│   ├── agent/         
-│   │   ├── graph.py       
-│   │   ├── prompts.py     
-│   │   ├── runner.py      
-│   │   └── tools.py       
-│   ├── models/        
-│   ├── multimodal/    
+│   ├── agent/       
+│   ├── api/           
+│   ├── models/       
+│   ├── multimodal/   
 │   ├── rag/           
 │   ├── config.py      
-│   └── main.py
-├── data/            
-│   ├── raw/          
+│   └── main.py        
 ├── frontend/
-│   └── streamlit_app.py
-├── scripts/           
-├── tests/
-├── .env.example
-├── requirements.txt
-├── .python-version
-├── Dockerfile
+│   └── static/        
+├── data/
+│   ├── raw/                    
+├── Dockerfile         
 └── README.md
 ```
+
+---
+
+## How to Run
+
+1.  **Clone the Repository**:
+    ```bash
+    git clone https://github.com/your-username/verifact.git
+    cd verifact
+    ```
+
+2.  **Set up Environment**:
+    Create a `.env` file from the example:
+    ```bash
+    cp .env.example .env
+    # Fill in your GROQ_API_KEY, TAVILY_API_KEY, and GOOGLE_API_KEY
+    ```
+
+3.  **Install Dependencies**:
+    ```bash
+    uv pip install -r requirements.txt
+    ```
+
+4.  **Start the Server**:
+    ```bash
+    uvicorn app.main:app --reload
+    ```
+    Access the UI at: `http://127.0.0.1:8000`
+
+---
 
 ## 📄 License
 This codebase is released under the **[Apache 2.0 License](LICENSE)**.
