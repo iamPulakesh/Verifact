@@ -65,6 +65,8 @@ VERDICT OPTIONS:
                 missing important context, or cherry-picked
   Unverified  -- Insufficient evidence found to confirm or deny
 
+CRITICAL SOURCE INSTRUCTION: Do NOT include any sources in 'sources_consulted' unless they are directly relevant to the specific claims being evaluated. If you have an "Unverified" verdict, a weak verdict, or if no highly relevant sources were found, you MUST return an empty list [] for 'sources_consulted'. Never include unrelated links.
+
 You MUST return your response as valid JSON in EXACTLY this format:
 {{
   "verdict": "Real|Fake|Misleading|Unverified",
@@ -78,7 +80,7 @@ You MUST return your response as valid JSON in EXACTLY this format:
     }}
   ],
   "reasoning_summary": "CONCISE 1-2 sentence overall explanation",
-  "sources_consulted": ["Up to 5 most credible full URLs"],
+  "sources_consulted": ["List of highly relevant URLs only, or [] if none"],
   "cot_steps": "CONCISE summary of reasoning steps 1-5"
 }}
 
@@ -125,7 +127,7 @@ Convert this into valid JSON with exactly this structure:
     }}
   ],
   "reasoning_summary": "2-3 sentence summary",
-  "sources_consulted": ["https://example.com/article"],
+  "sources_consulted": ["https://example.com/highly-relevant-article", "Return empty list [] if no relevant sources were used"],
   "cot_steps": "reasoning steps summary"
 }}
 

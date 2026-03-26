@@ -69,6 +69,11 @@ def set_cached_result(raw_input: str, result_dict: dict) -> None:
     if not client:
         return
 
+    verdict_val = str(result_dict.get("verdict", "")).lower()
+    if verdict_val not in ["real", "fake", "misleading"]:
+        logger.info("[cache] Verdict '%s' not cacheable. Skipping.", verdict_val)
+        return
+
     key = _make_key(raw_input)
     try:
         client.setex(key, CACHE_TTL, json.dumps(result_dict))
@@ -96,6 +101,11 @@ def get_cached_image_result(image_bytes: bytes) -> Optional[dict]:
 def set_cached_image_result(image_bytes: bytes, result_dict: dict) -> None:
     client = _get_redis()
     if not client:
+        return
+
+    verdict_val = str(result_dict.get("verdict", "")).lower()
+    if verdict_val not in ["real", "fake", "misleading"]:
+        logger.info("[cache] Image verdict '%s' not cacheable. Skipping.", verdict_val)
         return
 
     key = _make_image_key(image_bytes)

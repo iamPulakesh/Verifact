@@ -13,6 +13,7 @@ from app.api.cache import (
     get_cached_result, set_cached_result,
     get_cached_image_result, set_cached_image_result,
 )
+from app.api.session import get_session_model, set_session_model
 import time
 from app.rag.vectorstore import get_collection_stats
 
@@ -46,16 +47,35 @@ def _sanitize_error(msg: str) -> str:
     for secret in [
         settings.GROQ_API_KEY, settings.TAVILY_API_KEY,
         settings.PINECONE_API_KEY, settings.HF_TOKEN,
-        settings.SAMBANOVA_API_KEY,
+        settings.SAMBANOVA_API_KEY, settings.FIREWORKS_API_KEY, settings.CEREBRAS_API_KEY,
     ]:
         if secret:
             msg = msg.replace(secret, "***")
     return msg
 
 PROVIDER_MODELS = {
-    "groq": ["meta-llama/llama-4-scout-17b-16e-instruct", "openai/gpt-oss-20b", "openai/gpt-oss-120b", "qwen/qwen3-32b", "moonshotai/kimi-k2-instruct", "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-safeguard-20b"],
-    "sambanova": ["DeepSeek-R1-Distill-Llama-70B", "DeepSeek-V3-0324", "gpt-oss-120b", "Qwen3-235B", "Qwen3-32B", "DeepSeek-V3.1", "Meta-Llama-3.1-8B-Instruct", "Meta-Llama-3.3-70B-Instruct"],
-    "cerebras": ["llama3.1-8b", "gpt-oss-120b"],
+    "groq": [
+        "moonshotai/kimi-k2-instruct-0905",
+        "meta-llama/llama-4-scout-17b-16e-instruct",
+        "qwen/qwen3-32b",
+        "openai/gpt-oss-120b",
+    ],
+    "sambanova": [
+        "DeepSeek-V3.1",
+        "DeepSeek-V3-0324",
+        "DeepSeek-R1-0528",
+        "Llama-4-Maverick-17B-128E-Instruct",
+        "gpt-oss-120b",
+    ],
+    "fireworks": [
+        "accounts/fireworks/models/kimi-k2p5",
+        "accounts/fireworks/models/kimi-k2-instruct-0905",
+        "accounts/fireworks/models/deepseek-v3p2",
+        "accounts/fireworks/models/minimax-m2p5",
+    ],
+    "cerebras": [
+        "qwen-3-235b-a22b-instruct-2507",
+    ],
 }
 
 class ModelSwitchRequest(BaseModel):
@@ -70,20 +90,34 @@ class ModelSwitchRequest(BaseModel):
             raise ValueError(f"Invalid provider. Must be one of: {list(PROVIDER_MODELS.keys())}")
         return v
 
+def _get_user_model(request: Request) -> dict:
+    """Get the user's model preference from session cookie, or server defaults."""
+    session = get_session_model(request)
+    if session:
+        return session
+    return {"provider": settings.LLM_PROVIDER, "model": _get_default_model_name(settings.LLM_PROVIDER)}
+
+def _get_default_model_name(provider: str) -> str:
+    if provider == "sambanova":
+        return settings.SAMBANOVA_MODEL
+    if provider == "cerebras":
+        return settings.CEREBRAS_MODEL
+    if provider == "fireworks":
+        return settings.FIREWORKS_MODEL
+    return settings.LLM_MODEL
+
 @router.get("/model/current", tags=["model"])
 async def get_current_model(request: Request):
-    import app.config as cfg
+    user_model = _get_user_model(request)
     return {
-        "provider": cfg.LLM_PROVIDER,
-        "model": _get_active_model_name(cfg.LLM_PROVIDER),
+        "provider": user_model["provider"],
+        "model": user_model["model"],
         "providers": PROVIDER_MODELS,
     }
 
 @router.post("/model/switch", tags=["model"])
 @limiter.limit("20/minute")
 async def switch_model(request: Request, body: ModelSwitchRequest):
-    import app.config as cfg
-
     available = PROVIDER_MODELS.get(body.provider, [])
     if body.model not in available:
         raise HTTPException(
@@ -91,28 +125,12 @@ async def switch_model(request: Request, body: ModelSwitchRequest):
             detail=f"Model '{body.model}' not available for provider '{body.provider}'. Available: {available}",
         )
 
-    cfg.LLM_PROVIDER = body.provider
-    if body.provider == "groq":
-        cfg.LLM_MODEL = body.model
-    elif body.provider == "sambanova":
-        cfg.SAMBANOVA_MODEL = body.model
-    elif body.provider == "cerebras":
-        cfg.CEREBRAS_MODEL = body.model
+    response = JSONResponse(content={"status": "ok", "provider": body.provider, "model": body.model})
+    set_session_model(response, body.provider, body.model)
+    logger.info("[route] User switched model to %s / %s (session cookie)", body.provider, body.model)
+    return response
 
-    logger.info("[route] Model switched to %s / %s", body.provider, body.model)
-    return {"status": "ok", "provider": body.provider, "model": body.model}
-
-def _get_active_model_name(provider: str) -> str:
-    import app.config as cfg
-    if provider == "sambanova":
-        return cfg.SAMBANOVA_MODEL
-    if provider == "cerebras":
-        return cfg.CEREBRAS_MODEL
-    return cfg.LLM_MODEL
-
-# Routes 
 @router.get("/health", tags=["system"])
-@limiter.limit(LIMITS["health"])
 async def health(request: Request):
     try:
         stats = get_collection_stats()
@@ -137,10 +155,15 @@ async def check_url(request: Request, body: CheckUrlRequest):
         logger.info("[route] check_url CACHE HIT: %s", body.url[:80])
         return JSONResponse(content=cached)
 
+    user_model = _get_user_model(request)
     from app.agent.runner import run_fact_check
     logger.info("[route] check_url: %s", body.url[:80])
     try:
-        verdict = run_fact_check(body.url)
+        verdict = run_fact_check(
+            body.url,
+            llm_provider=user_model["provider"],
+            llm_model=user_model["model"],
+        )
         result = verdict.to_dict()
         set_cached_result(body.url, result)
         return JSONResponse(content=result)
@@ -159,10 +182,15 @@ async def check_text(request: Request, body: CheckTextRequest):
         logger.info("[route] check_text CACHE HIT: %d chars", len(body.text))
         return JSONResponse(content=cached)
 
+    user_model = _get_user_model(request)
     from app.agent.runner import run_fact_check
     logger.info("[route] check_text: %d chars", len(body.text))
     try:
-        verdict = run_fact_check(body.text)
+        verdict = run_fact_check(
+            body.text,
+            llm_provider=user_model["provider"],
+            llm_model=user_model["model"],
+        )
         result = verdict.to_dict()
         set_cached_result(body.text, result)
         return JSONResponse(content=result)
@@ -196,6 +224,7 @@ async def check_image(request: Request, file: UploadFile = File(...)):
         logger.info("[route] check_image CACHE HIT: %s", file.filename)
         return JSONResponse(content=cached)
 
+    user_model = _get_user_model(request)
     from app.agent.runner import run_fact_check
     suffix = Path(file.filename or "upload.jpg").suffix or ".jpg"
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
@@ -205,7 +234,11 @@ async def check_image(request: Request, file: UploadFile = File(...)):
         tmp.close()
 
         logger.info("[route] check_image: %s (%d bytes)", file.filename, len(data))
-        verdict = run_fact_check(tmp.name)
+        verdict = run_fact_check(
+            tmp.name,
+            llm_provider=user_model["provider"],
+            llm_model=user_model["model"],
+        )
         result = verdict.to_dict()
         set_cached_image_result(data, result)
         return JSONResponse(content=result)
@@ -220,4 +253,3 @@ async def check_image(request: Request, file: UploadFile = File(...)):
             os.unlink(tmp.name)
         except Exception:
             pass
-

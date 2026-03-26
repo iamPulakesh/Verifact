@@ -7,6 +7,15 @@ import requests
 from bs4 import BeautifulSoup
 from newspaper import Article
 
+import nltk
+try:
+    nltk.data.find('tokenizers/punkt_tab')
+except LookupError:
+    import logging
+    logging.getLogger(__name__).info("Downloading required NLTK data for Newspaper3k...")
+    nltk.download('punkt', quiet=True)
+    nltk.download('punkt_tab', quiet=True)
+
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -20,11 +29,29 @@ HEADERS = {
 REQUEST_TIMEOUT = settings.REQUEST_TIMEOUT
 
 
+import ipaddress
+
 def is_valid_url(url: str) -> bool:
-    """URL string validation check"""
     try:
         parsed = urlparse(url)
-        return parsed.scheme in ("http", "https") and bool(parsed.netloc)
+        if parsed.scheme not in ("http", "https"):
+            return False
+            
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+            
+        if hostname.lower() in ("localhost", "local", "169.254.169.254", "127.0.0.1", "0.0.0.0"):
+            return False
+            
+        try:
+            ip = ipaddress.ip_address(hostname)
+            if ip.is_private or ip.is_loopback or ip.is_link_local:
+                return False
+        except ValueError:
+            pass
+            
+        return True
     except Exception:
         return False
 

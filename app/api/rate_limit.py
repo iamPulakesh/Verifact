@@ -8,9 +8,8 @@ import redis as _redis
 logger = logging.getLogger(__name__)
 
 LIMITS = {
-    "health": "60/minute",    
-    "check":  "10/minute",    
-    "image":  "5/minute",    
+    "check":  "5/hour",    
+    "image":  "5/hour",    
 }
 
 def _resolve_storage_uri() -> str | None:
@@ -32,18 +31,21 @@ def _resolve_storage_uri() -> str | None:
         )
         return None
 
+def get_admin_aware_key(request) -> str | None:
+    bypass_key = os.getenv("ADMIN_BYPASS_KEY")
+    if bypass_key and request.headers.get("X-Admin-Bypass") == bypass_key:
+        return None
+    return get_remote_address(request)
 
 def _build_limiter() -> Limiter:
     storage_uri = _resolve_storage_uri()
-
-    if storage_uri:
-        logger.info("[rate_limit] Using Redis-backed limiter.")
-        return Limiter(
-            key_func=get_remote_address,
-            storage_uri=storage_uri,
-        )
-
-    logger.info("[rate_limit] Using in-memory limiter (single-process only).")
-    return Limiter(key_func=get_remote_address)
+    
+    limiter = Limiter(
+        key_func=get_admin_aware_key,
+        storage_uri=storage_uri if storage_uri else "memory://",
+        headers_enabled=True,
+    )
+    
+    return limiter
 
 limiter: Limiter = _build_limiter()
