@@ -18,9 +18,9 @@ Smart AI-powered system designed to analyze news headlines, paragraphs, image sn
 *   **Agent Framework**: [LangChain](https://python.langchain.com/) and [LangGraph](https://python.langchain.com/docs/langgraph).
 *   **LLMs**: Open-weight and proprietary models via multiple inference providers.
 *   **Information Retrieval**: 
-    *   [ChromaDB](https://www.trychroma.com/) / Vectorstore
-    *   HuggingFace `sentence-transformers` (Lazy Loaded)
-    *   [Tavily AI](https://tavily.com/) (Web Search)
+    *   [Pinecone](https://www.pinecone.io/)
+    *   HuggingFace `sentence-transformers`
+    *   [Tavily AI](https://tavily.com/) for Web Search
 *   **Data Scraping & OCR**:
     *   [EasyOCR](https://github.com/JaidedAI/EasyOCR) & [pytesseract](https://github.com/madmaze/pytesseract)
     *   [Newspaper3k](https://github.com/codelucas/newspaper) & [BeautifulSoup](https://www.crummy.com/software/BeautifulSoup/)
