@@ -14,7 +14,7 @@ Smart AI-powered system designed to analyze news headlines, paragraphs, image sn
 ## Tech Stack
 
 *   **Backend**: [FastAPI](https://fastapi.tiangolo.com/) (Python)
-*   **Frontend**: Vanilla HTML5, CSS3, and JavaScript (No external frameworks for maximum performance).
+*   **Frontend**: HTML, CSS3, and JavaScript.
 *   **Agent Framework**: [LangChain](https://python.langchain.com/) and [LangGraph](https://python.langchain.com/docs/langgraph).
 *   **LLMs**: Open-weight and proprietary models via multiple inference providers.
 *   **Information Retrieval**: 
@@ -80,7 +80,7 @@ Smart AI-powered system designed to analyze news headlines, paragraphs, image sn
 
 ---
 
-## How to Run
+## How to run locally
 
 1.  **Clone the Repository**:
     ```bash
@@ -88,11 +88,11 @@ Smart AI-powered system designed to analyze news headlines, paragraphs, image sn
     cd verifact
     ```
 
-2.  **Set up Environment**:
+2.  **Set up Environment and Google CLI for Vertex AI access**:
     Create a `.env` file from the example:
     ```bash
     cp .env.example .env
-    # Fill in your GROQ_API_KEY, TAVILY_API_KEY, and GOOGLE_API_KEY
+
     ```
 
 3.  **Install Dependencies**:
@@ -108,5 +108,5 @@ Smart AI-powered system designed to analyze news headlines, paragraphs, image sn
 
 ---
 
-## 📄 License
+## License
 This codebase is released under the **[Apache 2.0 License](LICENSE)**.
