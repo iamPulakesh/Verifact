@@ -62,8 +62,7 @@ PROVIDER_MODELS = {
     ],
     "sambanova": [
         "DeepSeek-V3.1",
-        "DeepSeek-V3-0324",
-        "DeepSeek-R1-0528",
+        "MiniMax-M2.5",
         "Llama-4-Maverick-17B-128E-Instruct",
         "gpt-oss-120b",
     ],
